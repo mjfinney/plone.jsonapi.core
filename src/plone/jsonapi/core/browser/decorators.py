@@ -3,7 +3,17 @@
 import time
 import traceback
 import simplejson as json
-from helpers import error
+from AccessControl import getSecurityManager
+from zope.globalrequest import getRequest
+try:
+    # Plone < 4.3
+    from zope.app.component.hooks import getSite
+except ImportError:
+    # Plone >= 4.3
+    from zope.component.hooks import getSite
+
+from werkzeug.exceptions import HTTPException, NotFound
+from plone.jsonapi.core.exceptions import APIError
 
 __author__ = 'Ramon Bartl <ramon.bartl@googlemail.com>'
 __docformat__ = 'plaintext'
@@ -16,9 +26,35 @@ def handle_errors(f):
     def decorator(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        # XXX we should create a custom Exception class
+        except APIError, e: 
+            request = getRequest()
+            message = str(e)
+            error=str(traceback.format_exc())
+
+        except NotFound, e:
+            message = str(e)
+            error=str(traceback.format_exc())
+            request = getRequest()
+            request.response.setStatus(404)
+
         except Exception, e:
-            return error(str(e), error=str(traceback.format_exc()))
+            request = getRequest()
+            if request.response.getStatus() == 200:
+                request.response.setStatus(500)
+            message = str(request.response.getStatus()) + " There was an error with this request."
+            error = str(e) + str(traceback.format_exc())
+
+        site = getSite()
+        if not getSecurityManager().checkPermission("ManagePortal", site):
+            if request.response.getStatus() == 404:
+                error = "This resource does not seem to exist."
+            else:
+                error = "Please Contact a site administrator."
+
+        result = {"success": False, "message": message, "error": error}
+        #return error(str(e), error=str(traceback.format_exc()))
+        return result
+
     return decorator
 
 
