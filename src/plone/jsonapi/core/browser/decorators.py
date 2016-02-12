@@ -2,6 +2,7 @@
 
 import time
 import traceback
+import logging
 import simplejson as json
 from AccessControl import getSecurityManager
 from zope.globalrequest import getRequest
@@ -18,6 +19,7 @@ from plone.jsonapi.core.exceptions import APIError
 __author__ = 'Ramon Bartl <ramon.bartl@googlemail.com>'
 __docformat__ = 'plaintext'
 
+logger = logging.getLogger("plone.jsonapi.core.decorators")
 
 def handle_errors(f):
     """ simple JSON error handler
@@ -45,8 +47,13 @@ def handle_errors(f):
             error = str(e) + str(traceback.format_exc())
 
         site = getSite()
+        status = request.response.getStatus()
+
+        if status not in (200, 404, 410):
+            logger.error("The following error has occured during an API response:\n %s\n %s", message, error)
+
         if not getSecurityManager().checkPermission("ManagePortal", site):
-            if request.response.getStatus() == 404:
+            if status == 404:
                 error = "This resource does not seem to exist."
             else:
                 error = "Please Contact a site administrator."
