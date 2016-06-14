@@ -10,6 +10,9 @@ class RouteProviderBase(object):
         """
         pass
 
+    def forbidden_error(self, message="403: Forbidden"):
+        raise APIError(403, message)
+
     def not_found_error(self, message="404: Not Found"):
         raise APIError(404, message)
 
