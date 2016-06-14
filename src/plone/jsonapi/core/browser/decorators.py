@@ -107,3 +107,20 @@ def supports_jsonp(func):
         return func(*args, **kwargs)
 
     return decorator
+
+def key_required(keys):
+    """ API key required
+        Takes a simple list of API keys as an argument.
+    """
+    def wrapper(func):
+        def decorator(*args, **kwargs):
+            request = args[2]
+            token = request.getHeader('X-Authorization')
+            if not token:
+                token = request.form.get('token')
+            if token not in keys:
+                raise APIError(403, "403: Forbidden")
+            return func(*args, **kwargs)
+        return decorator
+
+    return wrapper
